@@ -31,8 +31,13 @@ void *read_operation(void *args)
     printf("R - Espera terminada de prioridad de escritores...\n");
 
     printf("R - Esperando a administradores...\n");
+    pthread_mutex_lock(&mutex_admin);
     while (admins_count > 0)
-        ;
+    {
+        pthread_cond_wait(&cond_admin_wait, &mutex_admin);
+    }
+    pthread_mutex_unlock(&mutex_admin);
+
     printf("R - Espera terminada de administradores...\n");
 
     printf("R - Anuncia entrada...\n");
@@ -110,9 +115,13 @@ void *write_operation(void *args)
     printf("W - Espera terminada de lectores y escritores...\n");
 
     printf("W - Esperando a administradores...\n");
-    // Busy wait
+    pthread_mutex_lock(&mutex_admin);
     while (admins_count > 0)
-        ;
+    {
+        pthread_cond_wait(&cond_admin_wait, &mutex_admin);
+    }
+    pthread_mutex_unlock(&mutex_admin);
+
     printf("W - Espera terminada de administradores...\n");
 
     printf("W- Iniciando SC...\n");
@@ -154,7 +163,9 @@ void *admin_operation(void *args)
     printf("A - Anuncia entrada...\n");
 
     // Aumentar cantidad de administradores
+    pthread_mutex_lock(&mutex_admin);
     admins_count++;
+    pthread_mutex_unlock(&mutex_admin);
 
     printf("A - Iniciando SC...\n");
 
@@ -167,7 +178,14 @@ void *admin_operation(void *args)
     printf("A - Finalizando SC...\n");
 
     // Disminuir cantidad de administradores
+    pthread_mutex_lock(&mutex_admin);
     admins_count--;
+    if (admins_count == 0)
+    {
+        // Notificar a lectores y escritores
+        pthread_cond_broadcast(&cond_admin_wait);
+    }
+    pthread_mutex_unlock(&mutex_admin);
 
     sem_post(&concurrency_semaphore);
     concurrency_count--;
