@@ -14,16 +14,30 @@ pthread_mutex_t mutex_write;
 pthread_mutex_t mutex_admin;
 pthread_mutex_t mutex_admins_count;
 
+sem_t concurrency_semaphore;
+int concurrency_count = 0;
+int max_recorded_concurrency = 0;
+
 int readers_count = 0;
 int admins_count = 0;
 int is_writer_waiting = 0;
 
 #define DAYS 30
 #define HOURS_IN_A_DAY 24
+#define MAX_CONCURRENCY 30
+#define UNIT_OF_TIME 15
 
 void *read_operation(void *args)
 {
+    printf("R - Esperando espacio de concurrencia...\n");
+    sem_wait(&concurrency_semaphore);
+    printf("R - Espera terminada de espacio de concurrencia...\n");
+    concurrency_count++;
+    if (concurrency_count > max_recorded_concurrency)
+        max_recorded_concurrency = concurrency_count;
+
     printf("R - Esperando prioridad de escritores...\n");
+    // Busy wait
     while (is_writer_waiting == 1)
         ;
     printf("R - Espera terminada de prioridad de escritores...\n");
@@ -53,8 +67,8 @@ void *read_operation(void *args)
     printf("R - Iniciando SC...\n");
 
     // SC
-    printf("Leyendo...\n");
-    for (int time = 0; time < 10; time++)
+    printf("\033[1;32mLeyendo...\033[0m\n");
+    for (int time = 0; time < UNIT_OF_TIME; time++)
     {
     }
 
@@ -73,6 +87,9 @@ void *read_operation(void *args)
     // Desbloquear SC para lectores
     pthread_mutex_unlock(&mutex_readers_count);
 
+    sem_post(&concurrency_semaphore);
+    concurrency_count--;
+
     printf("R - Anuncia salida...\n");
 
     return NULL;
@@ -80,6 +97,13 @@ void *read_operation(void *args)
 
 void *write_operation(void *args)
 {
+    printf("W - Esperando espacio de concurrencia...\n");
+    sem_wait(&concurrency_semaphore);
+    printf("W - Espera terminada de espacio de concurrencia...\n");
+    concurrency_count++;
+    if (concurrency_count > max_recorded_concurrency)
+        max_recorded_concurrency = concurrency_count;
+
     printf("W - Anuncia entrada...\n");
     is_writer_waiting = 1;
 
@@ -89,6 +113,7 @@ void *write_operation(void *args)
     printf("W - Espera terminada de lectores y escritores...\n");
 
     printf("W - Esperando a administradores...\n");
+    // Busy wait
     while (admins_count > 0)
         ;
     printf("W - Espera terminada de administradores...\n");
@@ -96,8 +121,8 @@ void *write_operation(void *args)
     printf("W- Iniciando SC...\n");
 
     // SC
-    printf("Escribiendo...\n");
-    for (int time = 0; time < 30; time++)
+    printf("\033[1;32mEscribiendo...\033[0m\n");
+    for (int time = 0; time < (UNIT_OF_TIME * 3); time++)
     {
     }
 
@@ -105,6 +130,9 @@ void *write_operation(void *args)
 
     // Desbloquear escritura
     pthread_mutex_unlock(&mutex_write);
+
+    sem_post(&concurrency_semaphore);
+    concurrency_count--;
 
     printf("W - Anuncia salida...\n");
     is_writer_waiting = 0;
@@ -114,6 +142,13 @@ void *write_operation(void *args)
 
 void *admin_operation(void *args)
 {
+    printf("A - Esperando espacio de concurrencia...\n");
+    sem_wait(&concurrency_semaphore);
+    printf("A - Espera terminada de espacio de concurrencia...\n");
+    concurrency_count++;
+    if (concurrency_count > max_recorded_concurrency)
+        max_recorded_concurrency = concurrency_count;
+
     printf("A - Anuncia entrada...\n");
 
     // Aumentar cantidad de administradores
@@ -122,8 +157,8 @@ void *admin_operation(void *args)
     printf("A - Iniciando SC...\n");
 
     // SC
-    printf("Administrando...\n");
-    for (int time = 0; time < 10; time++)
+    printf("\033[1;32mAdministrando...\033[0m\n");
+    for (int time = 0; time < (UNIT_OF_TIME * 2); time++)
     {
     }
 
@@ -131,6 +166,9 @@ void *admin_operation(void *args)
 
     // Disminuir cantidad de administradores
     admins_count--;
+
+    sem_post(&concurrency_semaphore);
+    concurrency_count--;
 
     printf("A - Anuncia salida...\n");
 
@@ -141,12 +179,13 @@ int main()
 {
     srand(time(NULL));
 
-    // Inicializa el mutex en 1
     pthread_mutex_init(&mutex_read, NULL);
     pthread_mutex_init(&mutex_readers_count, NULL);
     pthread_mutex_init(&mutex_write, NULL);
     pthread_mutex_init(&mutex_admin, NULL);
     pthread_mutex_init(&mutex_admins_count, NULL);
+
+    sem_init(&concurrency_semaphore, 0, MAX_CONCURRENCY);
 
     // Entrada de usuario para seleccionar caso de uso
     int choice;
@@ -218,6 +257,9 @@ int main()
             for (int j = 0; j < HOURS_IN_A_DAY; j++)
             {
                 pthread_t op_thread;
+                int read_flag = 0;
+                int write_flag = 0;
+                int admin_flag = 0;
 
                 // Dice roll for read operation
                 int read_dice = rand() % 9 + 1;
@@ -229,7 +271,7 @@ int main()
                     read_operations_per_hour++;
                     read_operations_hour_array[j] += 1;
                     pthread_create(&op_thread, NULL, read_operation, NULL);
-                    pthread_join(op_thread, NULL);
+                    read_flag = 1;
                 }
 
                 // Dice roll for write operation
@@ -242,7 +284,7 @@ int main()
                     write_operations_per_hour++;
                     write_operations_hour_array[j] += 1;
                     pthread_create(&op_thread, NULL, write_operation, NULL);
-                    pthread_join(op_thread, NULL);
+                    write_flag = 1;
                 }
 
                 // Dice roll for admin operation
@@ -255,10 +297,23 @@ int main()
                     admin_operations_per_hour++;
                     admin_operations_hour_array[j] += 1;
                     pthread_create(&op_thread, NULL, admin_operation, NULL);
+                    admin_flag = 1;
+                }
+
+                if (read_flag == 1)
+                {
+                    pthread_join(op_thread, NULL);
+                }
+
+                if (write_flag == 1)
+                {
+                    pthread_join(op_thread, NULL);
+                }
+                if (admin_flag == 1)
+                {
                     pthread_join(op_thread, NULL);
                 }
             }
-
             read_operations += read_operations_per_hour;
             write_operations += write_operations_per_hour;
             admin_operations += admin_operations_per_hour;
@@ -313,11 +368,15 @@ int main()
         printf("Opción no válida.\n");
     }
 
+    printf("Máxima concurrencia registrada: %d\n", max_recorded_concurrency);
+
     pthread_mutex_destroy(&mutex_read);
     pthread_mutex_destroy(&mutex_readers_count);
     pthread_mutex_destroy(&mutex_write);
     pthread_mutex_destroy(&mutex_admin);
     pthread_mutex_destroy(&mutex_admins_count);
+
+    sem_destroy(&concurrency_semaphore);
 
     return 0;
 }
