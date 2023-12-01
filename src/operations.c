@@ -22,10 +22,12 @@ void *read_operation(void *args)
     if (concurrency_count > max_recorded_concurrency)
         max_recorded_concurrency = concurrency_count;
 
+    printf("R - Esperando para entrar...\n");
+    pthread_mutex_lock(&mutex_readers_waiting);
+    printf("R - Espera terminada para entrar...\n");
+
     printf("R - Esperando prioridad de escritores...\n");
-    // Busy wait
-    while (is_writer_waiting == 1)
-        ;
+    pthread_mutex_lock(&mutex_priority_writers);
     printf("R - Espera terminada de prioridad de escritores...\n");
 
     printf("R - Esperando a administradores...\n");
@@ -49,6 +51,10 @@ void *read_operation(void *args)
     readers_count++;
     // Desbloquear SC para lectores
     pthread_mutex_unlock(&mutex_readers_count);
+
+    pthread_mutex_unlock(&mutex_priority_writers);
+
+    pthread_mutex_unlock(&mutex_readers_waiting);
 
     printf("R - Iniciando SC...\n");
 
@@ -96,7 +102,7 @@ void *write_operation(void *args)
         max_recorded_concurrency = concurrency_count;
 
     printf("W - Anuncia entrada...\n");
-    is_writer_waiting = 1;
+    pthread_mutex_lock(&mutex_priority_writers);
 
     // Bloquear escritura
     printf("W - Esperando a lectores y escritores...\n");
@@ -126,7 +132,7 @@ void *write_operation(void *args)
     concurrency_count--;
 
     printf("W - Anuncia salida...\n");
-    is_writer_waiting = 0;
+    pthread_mutex_unlock(&mutex_priority_writers);
 
     return NULL;
 }

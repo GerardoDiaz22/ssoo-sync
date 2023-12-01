@@ -16,6 +16,8 @@ extern pthread_mutex_t mutex_readers_count;
 extern pthread_mutex_t mutex_write;
 extern pthread_mutex_t mutex_admin;
 extern pthread_mutex_t mutex_admins_count;
+extern pthread_mutex_t mutex_readers_waiting;
+extern pthread_mutex_t mutex_priority_writers;
 extern sem_t concurrency_semaphore;
 
 // Variables globales y contadores para control de acceso concurrente

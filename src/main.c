@@ -23,6 +23,8 @@ pthread_mutex_t mutex_readers_count;
 pthread_mutex_t mutex_write;
 pthread_mutex_t mutex_admin;
 pthread_mutex_t mutex_admins_count;
+pthread_mutex_t mutex_readers_waiting;
+pthread_mutex_t mutex_priority_writers;
 sem_t concurrency_semaphore;
 
 // Variables globales y contadores para control de acceso concurrente
@@ -47,6 +49,8 @@ int main()
     pthread_mutex_init(&mutex_write, NULL);
     pthread_mutex_init(&mutex_admin, NULL);
     pthread_mutex_init(&mutex_admins_count, NULL);
+    pthread_mutex_init(&mutex_readers_waiting, NULL);
+    pthread_mutex_init(&mutex_priority_writers, NULL);
     sem_init(&concurrency_semaphore, 0, MAX_CONCURRENCY);
 
     // Menú interactivo para selección de casos de uso
@@ -253,6 +257,8 @@ int main()
     pthread_mutex_destroy(&mutex_write);
     pthread_mutex_destroy(&mutex_admin);
     pthread_mutex_destroy(&mutex_admins_count);
+    pthread_mutex_destroy(&mutex_readers_waiting);
+    pthread_mutex_destroy(&mutex_priority_writers);
     sem_destroy(&concurrency_semaphore);
 
     return 0;
