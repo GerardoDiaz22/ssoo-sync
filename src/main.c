@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
-#include "globals.h"
-#include "operations.h"
+#include "../include/globals.h"
+#include "../include/operations.h"
 
 // Constantes de configuración
 #define DAYS 30

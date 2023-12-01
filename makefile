@@ -1,11 +1,22 @@
-output: main.o operations.o
-	gcc main.o operations.o -o run.out -lpthread
+CC=gcc
+CFLAGS=-std=c11 -Iinclude
+SRCDIR=src
+INCDIR=include
+OBJDIR=obj
+BINDIR=bin
 
-main.o: main.c globals.h operations.h
-	gcc -c main.c -std=c11
+all: $(BINDIR)/run.out
 
-operations.o: operations.c operations.h globals.h
-	gcc -c operations.c -std=c11
+$(BINDIR)/run.out: $(OBJDIR)/main.o $(OBJDIR)/operations.o
+	$(CC) $^ -o $@ -lpthread
+
+$(OBJDIR)/main.o: $(SRCDIR)/main.c $(INCDIR)/globals.h $(INCDIR)/operations.h
+	$(CC) -c $< $(CFLAGS) -o $@
+
+$(OBJDIR)/operations.o: $(SRCDIR)/operations.c $(INCDIR)/operations.h $(INCDIR)/globals.h
+	$(CC) -c $< $(CFLAGS) -o $@
+
+.PHONY: clean
 
 clean:
-	rm *.o run.*
+	rm -f $(OBJDIR)/*.o $(BINDIR)/run.out

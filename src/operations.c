@@ -4,8 +4,8 @@
  * y administración.
  */
 
-#include "operations.h"
-#include "globals.h"
+#include "../include/operations.h"
+#include "../include/globals.h"
 #include <stdio.h>
 
 /**
