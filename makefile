@@ -8,7 +8,7 @@ BINDIR=bin
 all: $(BINDIR)/run.out
 
 $(BINDIR)/run.out: $(OBJDIR)/main.o $(OBJDIR)/operations.o
-	$(CC) $^ -o $@ -lpthread
+	$(CC) $^ -o $@ -lpthread -lm
 
 $(OBJDIR)/main.o: $(SRCDIR)/main.c $(INCDIR)/globals.h $(INCDIR)/operations.h
 	$(CC) -c $< $(CFLAGS) -o $@

@@ -28,7 +28,10 @@ extern int admins_count;
 extern int is_writer_waiting;
 
 // Constantes de configuración
-#define MAX_CONCURRENCY 30
-#define UNIT_OF_TIME 15
+#define MAX_CONCURRENCY 100
+#define MAX_THREADS 5000
+#define UNIT_OF_TIME 10
+#define DAYS 30
+#define HOURS_IN_A_DAY 24
 
 #endif

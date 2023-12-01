@@ -10,12 +10,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include "../include/globals.h"
 #include "../include/operations.h"
-
-// Constantes de configuración
-#define DAYS 30
-#define HOURS_IN_A_DAY 24
 
 // Declaración de mutexes y semáforos para sincronización de hilos
 pthread_mutex_t mutex_read;
@@ -63,8 +60,7 @@ int main()
         printf("Seleccione una opción:\n");
         printf("1 - Simulación Básica (Lecturas y Escrituras Concurrentes)\n");
         printf("2 - Simulación Avanzada (Incluye Administración)\n");
-        printf("3 - Análisis Detallado del Día (Operaciones por Hora y Horas Pico)\n");
-        printf("4 - Pruebas de Borde y Casos Especiales\n");
+        printf("3 - Análisis Detallado por Día (Operaciones por Hora y Horas Pico)\n");
         printf("5 - Salir\n");
         printf("Introduzca su elección: ");
         scanf("%d", &choice);
@@ -73,13 +69,15 @@ int main()
         // Ejecución del caso de uso seleccionado
         switch (choice)
         {
+        // Caso 1
         case 1:
-            pthread_t a_t1_read, a_t2_read, a_t3_read, a_t1_write, a_t2_write, a_t1_admin, a_t2_admin;
 
-            // Caso 1
+            pthread_t a_t1_read, a_t2_read, a_t3_read, a_t1_write;
+
+            // max_recorded_concurrency = 0;
+
             pthread_create(&a_t1_read, NULL, read_operation, NULL);
             pthread_create(&a_t1_write, NULL, write_operation, NULL);
-            sleep(1);
             pthread_create(&a_t2_read, NULL, read_operation, NULL);
             pthread_create(&a_t3_read, NULL, read_operation, NULL);
 
@@ -87,12 +85,21 @@ int main()
             pthread_join(a_t1_write, NULL);
             pthread_join(a_t2_read, NULL);
             pthread_join(a_t3_read, NULL);
+
+            printf("Operaciones de lectura: 3\n");
+            printf("Operaciones de escritura: 1\n");
+            printf("Operaciones de administración: 0\n");
+            printf("Máxima concurrencia registrada: %d\n", max_recorded_concurrency);
+
             break;
 
+        // Caso 2
         case 2:
+
             pthread_t b_t1_read, b_t2_read, b_t3_read, b_t1_write, b_t2_write, b_t1_admin, b_t2_admin;
 
-            // Caso 2
+            // max_recorded_concurrency = 0;
+
             pthread_create(&b_t1_read, NULL, read_operation, NULL);
             pthread_create(&b_t1_write, NULL, write_operation, NULL);
             pthread_create(&b_t2_write, NULL, write_operation, NULL);
@@ -108,9 +115,18 @@ int main()
             pthread_join(b_t2_admin, NULL);
             pthread_join(b_t2_read, NULL);
             pthread_join(b_t3_read, NULL);
+
+            printf("Operaciones de lectura: 3\n");
+            printf("Operaciones de escritura: 2\n");
+            printf("Operaciones de administración: 2\n");
+            printf("Máxima concurrencia registrada: %d\n", max_recorded_concurrency);
+
             break;
 
+        // Caso 3
         case 3:
+            max_recorded_concurrency = 0;
+
             int read_operations = 0;
             int write_operations = 0;
             int admin_operations = 0;
@@ -119,91 +135,107 @@ int main()
             int write_operations_hour_array[HOURS_IN_A_DAY] = {0};
             int admin_operations_hour_array[HOURS_IN_A_DAY] = {0};
 
+            // Simulación de N días
             for (int i = 0; i < DAYS; i++)
             {
-                // Generate a random number to decide the dominant operation for the day
-                int dominant_op = rand() % 3; // 0 for read, 1 for write, 2 for admin
+                // Generar un número aleatorio para determinar la operación dominante
+                // 0 para lectura, 1 para escritura, 2 para administración
+                int dominant_op = rand() % 3;
 
                 int read_operations_per_hour = 0;
                 int write_operations_per_hour = 0;
                 int admin_operations_per_hour = 0;
 
+                pthread_t read_threads[MAX_THREADS] = {0};
+                pthread_t write_threads[MAX_THREADS] = {0};
+                pthread_t admin_threads[MAX_THREADS] = {0};
+
+                // Simulación de M horas
                 for (int j = 0; j < HOURS_IN_A_DAY; j++)
                 {
-                    pthread_t op_thread;
-                    int read_flag = 0;
-                    int write_flag = 0;
-                    int admin_flag = 0;
 
-                    // Dice roll for read operation
+                    // Lanzar un dado 1d10 para determinar si se realiza una operación de lectura
                     int read_dice = rand() % 9 + 1;
+
+                    // Si la operación es dominante, se suma un bono de 3 al dado
                     if (dominant_op == 0)
-                        read_dice += 3; // Bonus for dominant operation
+                        read_dice += 3;
 
-                    if (read_dice >= 6) // Threshold for operation to occur
+                    // Si el dado es mayor o igual a 6, se realiza la operación
+                    if (read_dice >= 6)
                     {
-                        read_operations_per_hour++;
-                        read_operations_hour_array[j] += 1;
-                        pthread_create(&op_thread, NULL, read_operation, NULL);
-                        read_flag = 1;
+                        // Sumar al dado un segundo dado 1d5 para determinar cuántas operaciones de lectura se realizan
+                        read_dice += rand() % 3 + 1;
+                        for (int k = 0; k < read_dice; k++)
+                        {
+                            read_operations_per_hour++;
+                            read_operations_hour_array[j] += 1;
+                            pthread_create(&read_threads[read_operations_per_hour], NULL, read_operation, NULL);
+                        }
                     }
 
-                    // Dice roll for write operation
+                    // Lanzar un dado 1d10 para determinar si se realiza una operación de escritura
                     int write_dice = rand() % 9 + 1;
+
+                    // Si la operación es dominante, se suma un bono de 3 al dado
                     if (dominant_op == 1)
-                        write_dice += 3; // Bonus for dominant operation
+                        write_dice += 3;
 
-                    if (write_dice >= 6) // Threshold for operation to occur
+                    // Si el dado es mayor o igual a 6, se realiza la operación
+                    if (write_dice >= 6)
                     {
-                        write_operations_per_hour++;
-                        write_operations_hour_array[j] += 1;
-                        pthread_create(&op_thread, NULL, write_operation, NULL);
-                        write_flag = 1;
+                        // Sumar al dado un segundo dado 1d5 para determinar cuántas operaciones de escritura se realizan
+                        write_dice += rand() % 3 + 1;
+                        for (int k = 0; k < write_dice; k++)
+                        {
+                            write_operations_per_hour++;
+                            write_operations_hour_array[j] += 1;
+                            pthread_create(&write_threads[write_operations_per_hour], NULL, write_operation, NULL);
+                        }
                     }
 
-                    // Dice roll for admin operation
+                    // Lanzar un dado 1d10 para determinar si se realiza una operación de administración
                     int admin_dice = rand() % 9 + 1;
+
+                    // Si la operación es dominante, se suma un bono de 3 al dado
                     if (dominant_op == 2)
-                        admin_dice += 3; // Bonus for dominant operation
+                        admin_dice += 3;
 
-                    if (admin_dice >= 6) // Threshold for operation to occur
+                    // Si el dado es mayor o igual a 6, se realiza la operación
+                    if (admin_dice >= 6)
                     {
-                        admin_operations_per_hour++;
-                        admin_operations_hour_array[j] += 1;
-                        pthread_create(&op_thread, NULL, admin_operation, NULL);
-                        admin_flag = 1;
-                    }
-
-                    if (read_flag == 1)
-                    {
-                        pthread_join(op_thread, NULL);
-                    }
-
-                    if (write_flag == 1)
-                    {
-                        pthread_join(op_thread, NULL);
-                    }
-                    if (admin_flag == 1)
-                    {
-                        pthread_join(op_thread, NULL);
+                        // Sumar al dado un segundo dado 1d5 para determinar cuántas operaciones de administración se realizan
+                        admin_dice += rand() % 3 + 1;
+                        for (int k = 0; k < admin_dice; k++)
+                        {
+                            admin_operations_per_hour++;
+                            admin_operations_hour_array[j] += 1;
+                            pthread_create(&admin_threads[admin_operations_per_hour], NULL, admin_operation, NULL);
+                        }
                     }
                 }
+
                 read_operations += read_operations_per_hour;
                 write_operations += write_operations_per_hour;
                 admin_operations += admin_operations_per_hour;
 
-                printf("Operación dominante: %d\n", dominant_op);
+                // Esperar a que terminen todos los hilos del día
+                for (int k = 0; k < read_operations_per_hour; k++)
+                {
+                    pthread_join(read_threads[k], NULL);
+                }
+
+                for (int k = 0; k < write_operations_per_hour; k++)
+                {
+                    pthread_join(write_threads[k], NULL);
+                }
+
+                for (int k = 0; k < admin_operations_per_hour; k++)
+                {
+                    pthread_join(admin_threads[k], NULL);
+                }
             }
 
-            printf("Operaciones de lectura: %d\n", read_operations);
-            printf("Operaciones de escritura: %d\n", write_operations);
-            printf("Operaciones de administración: %d\n", admin_operations);
-
-            printf("Operaciones de lectura por hora: %f\n", (float)read_operations / (DAYS * HOURS_IN_A_DAY));
-            printf("Operaciones de escritura por hora: %f\n", (float)write_operations / (DAYS * HOURS_IN_A_DAY));
-            printf("Operaciones de administración por hora: %f\n", (float)admin_operations / (DAYS * HOURS_IN_A_DAY));
-
-            // Encontrar hora con más operaciones
             int max_read_operations_hour = 0;
             int max_write_operations_hour = 0;
             int max_admin_operations_hour = 0;
@@ -212,6 +244,7 @@ int main()
             int max_write_operations_hour_index = 0;
             int max_admin_operations_hour_index = 0;
 
+            // Encontrar hora con más operaciones por tipo
             for (int i = 0; i < HOURS_IN_A_DAY; i++)
             {
                 if (read_operations_hour_array[i] > max_read_operations_hour)
@@ -233,15 +266,19 @@ int main()
                 }
             }
 
+            printf("Operaciones de lectura: %d\n", read_operations);
+            printf("Operaciones de escritura: %d\n", write_operations);
+            printf("Operaciones de administración: %d\n", admin_operations);
+
+            printf("Operaciones de lectura por hora: %.2f\n", roundf((float)read_operations / (DAYS * HOURS_IN_A_DAY) * 100) / 100);
+            printf("Operaciones de escritura por hora: %.2f\n", roundf((float)write_operations / (DAYS * HOURS_IN_A_DAY) * 100) / 100);
+            printf("Operaciones de administración por hora: %.2f\n", roundf((float)admin_operations / (DAYS * HOURS_IN_A_DAY) * 100) / 100);
+
             printf("Hora con más operaciones de lectura: %d\n", max_read_operations_hour_index);
             printf("Hora con más operaciones de escritura: %d\n", max_write_operations_hour_index);
             printf("Hora con más operaciones de administración: %d\n", max_admin_operations_hour_index);
             printf("Máxima concurrencia registrada: %d\n", max_recorded_concurrency);
 
-            break;
-        case 4:
-            // Pruebas de Borde: ejecuta escenarios de prueba para casos especiales y de borde
-            /* ... lógica para las Pruebas de Borde ... */
             break;
         case 5:
             printf("Saliendo del programa...\n");
